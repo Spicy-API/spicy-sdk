@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { extname } from "node:path";
 import { SDK_VERSION } from "../generated/package-version.js";
 import { decodeBase64Media } from "./base64.js";
-import { MAX_API_RESPONSE_BYTES, readResponseText } from "./response-body.js";
+import { MAX_API_RESPONSE_BYTES, describeForeignBody, readResponseText } from "./response-body.js";
 export { MAX_API_RESPONSE_BYTES } from "./response-body.js";
 
 import {
@@ -696,10 +696,10 @@ export class SpicyClient {
     try {
       parsed = JSON.parse(text);
     } catch {
-      throw new SpicyApiError("API response was not valid JSON", { status: response.status });
+      throw notFromTheApi("API response was not valid JSON", response, text);
     }
     if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-      throw new SpicyApiError("API response was not a JSON object", { status: response.status });
+      throw notFromTheApi("API response was not a JSON object", response, text);
     }
 
     const envelope = parsed as Partial<Envelope<T>>;
@@ -722,6 +722,16 @@ export class SpicyClient {
       });
     } catch {
       /* Observability code must never hide an accepted task or trigger a duplicate call. */
+    }
+    /* Parsing is not the test; authorship is. An intermediary that speaks JSON - Cloudflare does,
+       whenever the request asks for it - gets this far with a perfectly valid object that simply
+       is not ours. Without this line it falls through to the generic status message below, which
+       is the same dead end by a different route. Both markers are checked because an envelope
+       missing `code` yet carrying `msg` is a platform response worth reporting as written. This
+       sits after the observability hook so that a request stopped at the edge is still counted:
+       the status is exactly what would let a caller notice the pattern on their own. */
+    if (code === undefined && typeof envelope.msg !== "string") {
+      throw notFromTheApi("API response was not a SpicyAPI envelope", response, text);
     }
     if (!response.ok || code !== 200) {
       const retryAfterMs = parseRetryAfter(response.headers.get("retry-after"), this.now());
@@ -824,4 +834,39 @@ export class SpicyClient {
     const jitter = 0.75 + this.random() * 0.5;
     return Math.min(Math.round(exponential * jitter), this.maxRetryDelayMs);
   }
+}
+
+/** Kept well under the envelope limit: a diagnostic, not a copy of whatever the edge served. */
+const RETAINED_BODY_LIMIT = 512;
+
+/**
+ * Build the error for a reply that was not written by the platform.
+ *
+ * The lead sentence is the one the reader can act on. A caller behind a blocking edge gets `403`
+ * and used to be told only that the response was not valid JSON, which reads as "the API is
+ * broken" and sends everyone - including the caller's own assistant - to debug an endpoint that
+ * never received the request. What they actually need to know first is that the service is not
+ * offered everywhere; the evidence for that claim comes after it, not before.
+ */
+function notFromTheApi(reason: string, response: Response, text: string): SpicyApiError {
+  const described = describeForeignBody(text);
+  /* The stop goes outside the quote unless the quoted text brought its own. */
+  const quoted = `${described}${/[.!?]"?$/.test(described) ? "" : "."}`;
+  const sentences =
+    response.status === 403
+      ? [
+          "Refused before reaching SpicyAPI (HTTP 403). The service is not offered in every" +
+            " region: https://spicyapi.ai/legal/terms.",
+          `A proxy, gateway or CDN edge answered instead - ${quoted}`,
+        ]
+      : [
+          `${reason} (HTTP ${response.status}): ${quoted}`,
+          "Every SpicyAPI response is a JSON envelope, so something between this client and the" +
+            " API answered instead.",
+        ];
+  const body = text.trim().slice(0, RETAINED_BODY_LIMIT);
+  return new SpicyApiError(sentences.join(" "), {
+    status: response.status,
+    ...(body === "" ? {} : { responseBody: body }),
+  });
 }

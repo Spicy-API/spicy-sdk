@@ -1,5 +1,32 @@
 # @spicyapi/sdk
 
+## 0.7.4
+
+### Patch Changes
+
+- Lead with the fact the caller can act on when a reply did not come from SpicyAPI. A request
+  stopped at the edge returns `403` with a page the platform never wrote; it used to surface as
+  `API response was not valid JSON`, or as the generic `request failed with HTTP 403`. Both read as
+  "the API is broken" and send the reader — often an assistant acting on the caller's behalf — to
+  debug an endpoint that never received the request. A `403` now opens with the regions the service
+  is offered in, and only then quotes whatever answered:
+
+  ```
+  Refused before reaching SpicyAPI (HTTP 403). The service is not offered in every region:
+  https://spicyapi.ai/legal/terms. A proxy, gateway or CDN edge answered instead - the body said
+  "Error 1010: Access denied - The site owner has blocked access based on your browser's signature."
+  ```
+
+  The platform's own errors are untouched and still reported in the platform's own words. The raw
+  reply, truncated, is kept on the new `SpicyApiError.responseBody`, which is set only for foreign
+  replies.
+
+  Whether the body parses was never the right test, and assuming it was is how the common case got
+  missed: Cloudflare content-negotiates its error pages and this client always sends
+  `Accept: application/json`, so an edge block arrives as well-formed JSON at least as often as it
+  arrives as HTML. The test is now authorship — every platform reply carries a numeric `code` —
+  rather than syntax.
+
 ## 0.7.0
 
 ### Minor Changes

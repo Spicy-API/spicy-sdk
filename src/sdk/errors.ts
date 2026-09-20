@@ -7,6 +7,11 @@ export interface SpicyApiErrorOptions {
   retryAfterSeconds?: number | undefined;
   rateLimitLimit?: number | undefined;
   rateLimitRemaining?: number | undefined;
+  /**
+   * The raw reply, truncated, and only when it was not the platform's JSON envelope - which means
+   * it was not written by the platform. It names the layer that answered instead.
+   */
+  responseBody?: string | undefined;
 }
 
 export class SpicyApiError extends Error {
@@ -16,6 +21,7 @@ export class SpicyApiError extends Error {
   readonly retryAfterSeconds: number | undefined;
   readonly rateLimitLimit: number | undefined;
   readonly rateLimitRemaining: number | undefined;
+  readonly responseBody: string | undefined;
 
   constructor(message: string, options: SpicyApiErrorOptions) {
     super(message);
@@ -26,6 +32,7 @@ export class SpicyApiError extends Error {
     this.retryAfterSeconds = options.retryAfterSeconds;
     this.rateLimitLimit = options.rateLimitLimit;
     this.rateLimitRemaining = options.rateLimitRemaining;
+    this.responseBody = options.responseBody;
   }
 }
 

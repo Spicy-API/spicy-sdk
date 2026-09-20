@@ -1023,4 +1023,123 @@ void test("a task record carries contentState and the effective retention, telli
   assert.equal(task.contentRemovedBy, "user");
   assert.equal(task.purgedAt, "2026-09-13T10:00:00Z");
   assert.equal(task.retention?.source, "header");
+});const CLOUDFLARE_BLOCK_PAGE =
+  '<!DOCTYPE html><html lang="en-US"><head><title>Attention Required! | Cloudflare</title>' +
+  "</head><body><h1>Sorry, you have been blocked</h1></body></html>";
+
+void test("a 403 carrying an edge block page says the request never reached the API", async () => {
+  const mock = scriptedFetch([
+    new Response(CLOUDFLARE_BLOCK_PAGE, {
+      status: 403,
+      headers: { "content-type": "text/html" },
+    }),
+  ]);
+
+  await assert.rejects(clientWith(mock.fetch).getBalance(), (error: unknown) => {
+    assert.ok(error instanceof SpicyApiError);
+    assert.equal(error.status, 403);
+    // What answered has to survive into the error: the page's own title is the identifying line.
+    // The regions sentence leads: it is the only part the reader can act on.
+    assert.match(error.message, /^Refused before reaching SpicyAPI \(HTTP 403\)\. The service is not offered in every region: https:\/\/spicyapi\.ai\/legal\/terms\./);
+    assert.match(error.message, /proxy, gateway or CDN edge answered instead/);
+    // What answered still has to survive into the error, after the part that matters.
+    assert.match(error.message, /Attention Required! \| Cloudflare"\.$/);
+    assert.ok(error.responseBody?.includes("you have been blocked"));
+    return true;
+  });
+});
+
+void test("a short non-JSON body is quoted verbatim rather than described", async () => {
+  const mock = scriptedFetch([new Response("error code: 1010", { status: 403 })]);
+
+  await assert.rejects(clientWith(mock.fetch).getBalance(), (error: unknown) => {
+    assert.ok(error instanceof SpicyApiError);
+    assert.match(error.message, /answered instead - the body was "error code: 1010"\.$/);
+    return true;
+  });
+});
+
+void test("an empty body is reported as empty and retains nothing", async () => {
+  const mock = scriptedFetch([new Response("", { status: 502 })]);
+
+  await assert.rejects(clientWith(mock.fetch).getBalance(), (error: unknown) => {
+    assert.ok(error instanceof SpicyApiError);
+    assert.match(error.message, /the body was empty\./);
+    assert.equal(error.responseBody, undefined);
+    // Only 403 is an edge refusal; a 502 must not send the reader to the regions page.
+    assert.doesNotMatch(error.message, /legal\/terms/);
+    return true;
+  });
+});
+
+/* The counter-example. Without it the assertions above would still pass if the new wording were
+   glued onto every failure, and the platform's own errors - which do reach the origin and do
+   carry a request id - would start blaming a proxy that was never involved. */
+void test("a genuine API error envelope keeps its own message and blames no intermediary", async () => {
+  const mock = scriptedFetch([
+    Response.json(
+      { code: 401, msg: "Credentials are invalid or expired", request_id: "req_real" },
+      { status: 401 },
+    ),
+  ]);
+
+  await assert.rejects(clientWith(mock.fetch).getBalance(), (error: unknown) => {
+    assert.ok(error instanceof SpicyApiError);
+    assert.equal(error.message, "Credentials are invalid or expired");
+    assert.equal(error.requestId, "req_real");
+    assert.equal(error.responseBody, undefined);
+    assert.doesNotMatch(error.message, /proxy, gateway or CDN edge/);
+    return true;
+  });
+});
+
+/* Captured verbatim from cdn.spicyapi.ai on 2026-09-21 by sending the Accept header this client
+   always sends. Cloudflare answers its own block pages in JSON when asked to, which is why a
+   check for "does it parse" is not a check for "did the API write it". */
+const CLOUDFLARE_JSON_BLOCK = JSON.stringify({
+  type: "https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors/error-1010/",
+  title: "Error 1010: Access denied",
+  status: 403,
+  detail: "The site owner has blocked access based on your browser's signature.",
+  error_code: 1010,
+  ray_id: "a3e29537e88ef51a",
+  zone: "cdn.spicyapi.ai",
+  cloudflare_error: true,
+});
+
+void test("an edge block that parses as JSON is still reported as not ours", async () => {
+  const mock = scriptedFetch([
+    new Response(CLOUDFLARE_JSON_BLOCK, {
+      status: 403,
+      headers: { "content-type": "application/json" },
+    }),
+  ]);
+
+  await assert.rejects(clientWith(mock.fetch).getBalance(), (error: unknown) => {
+    assert.ok(error instanceof SpicyApiError);
+    assert.equal(error.status, 403);
+    // The generic fallback is exactly the dead end this exists to prevent.
+    // The generic fallback is exactly the dead end this exists to prevent.
+    assert.doesNotMatch(error.message, /request failed with HTTP/);
+    assert.match(error.message, /^Refused before reaching SpicyAPI \(HTTP 403\)\./);
+    // The intermediary's own words, not a dump of its JSON, and no doubled full stop.
+    assert.match(error.message, /instead - the body said "Error 1010: Access denied - The site owner has blocked access based on your browser's signature\."$/);
+    return true;
+  });
+});
+
+void test("a platform envelope missing only its code is still read as the platform's own words", async () => {
+  const mock = scriptedFetch([
+    Response.json(
+      { msg: "Credentials are invalid or expired", request_id: "req_x" },
+      { status: 401 },
+    ),
+  ]);
+
+  await assert.rejects(clientWith(mock.fetch).getBalance(), (error: unknown) => {
+    assert.ok(error instanceof SpicyApiError);
+    assert.equal(error.message, "Credentials are invalid or expired");
+    assert.doesNotMatch(error.message, /proxy, gateway or CDN edge/);
+    return true;
+  });
 });
