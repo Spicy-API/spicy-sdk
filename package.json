@@ -1,0 +1,55 @@
+{
+  "name": "@spicyapi/sdk",
+  "version": "0.7.1",
+  "description": "Official TypeScript SDK and typed public API contract for SpicyAPI",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Spicy-API/spicy-sdk.git"
+  },
+  "homepage": "https://spicyapi.ai",
+  "bugs": {
+    "url": "https://github.com/Spicy-API/spicy-sdk/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    },
+    "./webhooks": {
+      "types": "./dist/src/webhooks/index.d.ts",
+      "import": "./dist/src/webhooks/index.js"
+    },
+    "./openapi": {
+      "types": "./dist/src/generated/openapi.d.ts",
+      "import": "./dist/src/generated/openapi.js"
+    }
+  },
+  "files": [
+    "dist/src",
+    "contracts/openapi.yaml",
+    "README.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node scripts/generate-package-version.mjs && tsc -p tsconfig.json",
+    "typecheck": "node scripts/generate-package-version.mjs && tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test dist/test/*.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "26.4.0",
+    "prettier": "3.9.6",
+    "typescript": "5.9.3",
+    "openai": "^7.10.0"
+  }
+}
