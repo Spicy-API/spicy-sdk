@@ -1,5 +1,14 @@
 # @spicyapi/sdk
 
+## 0.7.5
+
+### Patch Changes
+
+- Add the four language SDK pages and the image generation guide to the documentation index, so
+  `docs search` and `docs read` can reach them. The pages went live on the documentation site
+  earlier; until now this hand-maintained index did not list them, and a search for "python sdk"
+  or "lora" simply returned nothing rather than saying the page was missing.
+
 ## 0.7.4
 
 ### Patch Changes
