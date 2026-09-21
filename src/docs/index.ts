@@ -68,6 +68,34 @@ const definitions: Array<Omit<DocumentationEntry, "url">> = [
     keywords: ["sdk", "typescript", "javascript", "node", "npm", "client library"],
   },
   {
+    slug: "sdk-python",
+    title: "Python SDK",
+    summary:
+      "The official Python SDK — install it, quote and run your first generation, upload a local file, verify webhooks and read every error code.",
+    keywords: ["sdk", "python", "pip", "pypi", "asyncio", "client library"],
+  },
+  {
+    slug: "sdk-go",
+    title: "Go SDK",
+    summary:
+      "The official Go SDK — install it, quote and run your first generation, upload a local file, walk your task history and handle every error code.",
+    keywords: ["sdk", "go", "golang", "go get", "module", "client library"],
+  },
+  {
+    slug: "sdk-php",
+    title: "PHP SDK",
+    summary:
+      "The official PHP SDK — install it with Composer, quote and run your first generation, upload a local file, verify webhooks safely and handle every error code.",
+    keywords: ["sdk", "php", "composer", "packagist", "laravel", "client library"],
+  },
+  {
+    slug: "sdk-java",
+    title: "Java SDK",
+    summary:
+      "The official Java SDK — install it, quote and run your first generation, upload a local file, verify callbacks and switch exhaustively over a sealed error taxonomy.",
+    keywords: ["sdk", "java", "maven", "gradle", "jvm", "kotlin", "client library"],
+  },
+  {
     slug: "authentication",
     title: "Authentication",
     summary: "Key format, per-key restrictions, and what to do the moment a key leaks.",
@@ -162,6 +190,21 @@ const definitions: Array<Omit<DocumentationEntry, "url">> = [
     summary:
       "Step by step: upload a still image, choose an image-to-video model from the live catalog, confirm the quote and collect the finished clip.",
     keywords: ["image to video", "image-to-video", "animate a photo", "walkthrough"],
+  },
+  {
+    slug: "guide-image-generation",
+    title: "Guide: generating and editing images",
+    summary:
+      "How the image endpoints behave as a class — the two request shapes, the three ways output size is spelled, what a reference picture adds to the bill, adapter weights, and how to read a rejection.",
+    keywords: [
+      "text to image",
+      "image editing",
+      "reference image",
+      "aspect ratio",
+      "resolution",
+      "lora",
+      "adapter weights",
+    ],
   },
   {
     slug: "subject-swap",
