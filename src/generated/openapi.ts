@@ -355,7 +355,7 @@ export interface paths {
          *     bytes with PUT and copy every returned header. Supported media types are
          *     JPEG, PNG, WebP and GIF images (10 MiB), or MP4/WebM video and
          *     MP3/WAV audio (90 MiB, at most 600 seconds). Audio/video commit verifies
-         *     format and measurable duration; it does not inspect adult content. After PUT,
+         *     format and measurable duration; it does not apply a platform content filter. After PUT,
          *     call the file commit endpoint and use its spicy:// URI in task input.
          */
         post: operations["createUploadUrl"];
@@ -723,7 +723,7 @@ export interface components {
         CreateTaskRequest: {
             /** @description Exact `model` value from the model catalog. */
             model: string;
-            /** @description Validated against the selected model's inputSchema. Declared image fields accept public HTTPS URLs, committed spicy:// file URIs, or standard Base64 Data URIs (image/jpeg, image/png, image/webp, image/gif). Inline images are limited to 1048576 decoded bytes and 8388608 pixels each, 8192 pixels per side, and 16 images / 16777216 pixels in total. The complete JSON request must fit within 2097152 bytes. Model-specific limits still apply. Bare Base64, SVG and inline audio/video are not accepted; use HTTPS or file uploads instead. Inline images are stored as account-bound uploaded files; returned input contains file URIs, never the original Base64 bytes. Quote validation does not upload or reserve funds. */
+            /** @description Validated against the selected model's inputSchema. Declared image fields accept public HTTPS URLs, committed spicy:// file URIs, or standard Base64 Data URIs (image/jpeg, image/png, image/webp, image/gif). Inline images are limited to 1048576 decoded bytes and 8388608 pixels each, 8192 pixels per side, and 16 images / 16777216 pixels in total. The complete JSON request must fit within 2097152 bytes. Model-specific limits still apply. Bare Base64, SVG and inline audio/video are not accepted; use HTTPS or file uploads instead. Inline images are stored as account-bound uploaded files; returned input contains file URIs, never the original Base64 bytes. Quote validation does not upload or reserve funds. If the model's inputSchema declares `seed` and you omit it, we pick a random seed for this task, so two identical requests do not come back with the same output. The chosen seed is returned in the task's `input`; pass it back to hold the draw steady (a fixed seed keeps runs comparable, it does not guarantee an identical result). On the few models that cannot honour `seed` on every request, we still vary it where it applies but do not echo it. A `seed` you send yourself is always used as given. */
             input: {
                 [key: string]: unknown;
             };
@@ -861,7 +861,7 @@ export interface components {
             model: string;
             /** @enum {string} */
             state: "queued" | "running" | "succeeded" | "failed" | "canceled" | "expired";
-            /** @description Normalized model input; inline images become account-bound file URIs. Omitted after retention redaction. */
+            /** @description Normalized model input; inline images become account-bound file URIs. Includes the random `seed` we picked when you omitted one (see CreateTaskRequest.input). Omitted after retention redaction. */
             input?: {
                 [key: string]: unknown;
             };
@@ -1058,7 +1058,7 @@ export interface components {
             /** @description Informational model-creator capability metadata only. It does not participate in authorization, availability decisions, or request rejection. */
             mature: boolean;
             /**
-             * @description Informational model-creator policy metadata only. It does not participate in authorization, availability decisions, or request rejection. `unrestricted`: the model adds no refusal layer of its own. `borderline`: it accepts some mature material and may still refuse. `softened`: it does not refuse and does not fail — it quietly returns a tamer result, and that task settles and is charged like any other success. `filtered`: it refuses mature material outright, which surfaces as a `content_rejected` failure. `unspecified`: no tier has been recorded for this model. Treat the set as open: a value you do not recognise must not break your client.
+             * @description Informational model-creator policy metadata only. It does not participate in authorization, availability decisions, or request rejection. `unrestricted`: the model adds no refusal layer of its own. `borderline`: its own policy lets some requests through and may still decline others. `softened`: it does not refuse and does not fail — it quietly returns a toned-down result, and that task settles and is charged like any other success. `filtered`: it declines requests its own policy restricts, which surfaces as a `content_rejected` failure. `unspecified`: no tier has been recorded for this model. Treat the set as open: a value you do not recognise must not break your client.
              * @enum {string}
              */
             policyTier: "unrestricted" | "borderline" | "softened" | "filtered" | "unspecified";
